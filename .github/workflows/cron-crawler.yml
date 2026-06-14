@@ -1,0 +1,82 @@
+# ============================================================
+# GitHub Actions — 定時新聞抓取（Vercel Hobby 替代方案）
+# ============================================================
+# 為什麼需要這個？
+#   Vercel Hobby 的 Cron Jobs 每天只執行一次。
+#   如果你的 RSS 源更新頻繁，一天一次不夠用，
+#   這個 GitHub Actions workflow 可以免費做到每小時一次。
+#
+# 原理：
+#   GitHub Actions 發送 HTTP GET 請求觸發 Vercel 上的 /api/crawler，
+#   攜帶 x-vercel-cron: 1 標頭和 CRON_SECRET 作為 query param，
+#   函數在 Vercel 伺服器端執行（不消耗 Actions 的運算資源）。
+#
+# 設定步驟：
+#   1. GitHub repo → Settings → Secrets and variables → Actions
+#   2. 新增兩個 secrets：
+#      - VERCEL_CRAWLER_URL: https://你的前端域名/api/crawler
+#      - VERCEL_CRON_SECRET: 與 Vercel 中設定的 CRON_SECRET 一致
+#   3. 提交這個檔案後即自動啟用
+# ============================================================
+
+name: 定時新聞抓取
+
+on:
+  schedule:
+    # 每小時的第 15 分鐘（UTC），每天 24 次
+    # GitHub Actions 排程在負載高峰時可能延遲 5–15 分鐘
+    - cron: '15 * * * *'
+
+  # 允許手動觸發（Actions 頁面 → Run workflow）
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '強制執行（忽略任何限制）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+# 確保同一時間只有一個 workflow 實例在執行
+concurrency:
+  group: crawler-singleton
+  cancel-in-progress: false
+
+jobs:
+  trigger-crawler:
+    name: 觸發 Vercel 抓取端點
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 呼叫 /api/crawler
+        run: |
+          RESPONSE=$(curl -s -w '\n%{http_code}' \
+            --max-time 55 \
+            -H 'x-vercel-cron: 1' \
+            "${{ secrets.VERCEL_CRAWLER_URL }}?secret=${{ secrets.VERCEL_CRON_SECRET }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP 狀態碼: $HTTP_CODE"
+          echo "回應內容:"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+
+          # 非 2xx 視為失敗，傳送 GitHub Actions 通知
+          if [[ "$HTTP_CODE" -lt 200 || "$HTTP_CODE" -ge 300 ]]; then
+            echo "::error:: 抓取端點返回 HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          # 解析並輸出統計
+          PUBLISHED=$(echo "$BODY" | jq -r '.itemsPublished // 0')
+          BLOCKED=$(echo "$BODY" | jq -r '.itemsBlocked // 0')
+          DUPLICATE=$(echo "$BODY" | jq -r '.itemsDuplicate // 0')
+          FAILED=$(echo "$BODY" | jq -r '.itemsFailed // 0')
+
+          echo "=============================="
+          echo "發布: $PUBLISHED | 攔截: $BLOCKED | 重複: $DUPLICATE | 失敗: $FAILED"
+          echo "=============================="

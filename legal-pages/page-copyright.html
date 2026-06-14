@@ -1,0 +1,291 @@
+<!--
+  頁面一：版權聲明
+  使用方法：在 WordPress 後台 → 頁面 → 新增頁面 → 標題填「版權聲明」→
+  切換到「文字」模式（Text tab），貼入以下全部內容 → 發布。
+  永久連結建議設為：/copyright
+-->
+<style>
+/* ====== 容器 & 基礎排版 ====== */
+.copyright-page {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", sans-serif;
+  font-size: 15px;
+  line-height: 1.85;
+  color: #2d2d2d;
+  -webkit-font-smoothing: antialiased;
+}
+
+.copyright-page h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #111;
+  letter-spacing: 0.5px;
+}
+.copyright-page .subtitle {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #eee;
+}
+.copyright-page h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 36px 0 12px;
+  color: #1a1a1a;
+  padding-left: 10px;
+  border-left: 3px solid #c41e3a;
+}
+.copyright-page h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 20px 0 8px;
+  color: #333;
+}
+.copyright-page p {
+  margin: 0 0 14px;
+}
+.copyright-page ul, .copyright-page ol {
+  margin: 0 0 16px 20px;
+  padding: 0;
+}
+.copyright-page li {
+  margin-bottom: 6px;
+}
+.copyright-page a {
+  color: #c41e3a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.copyright-page a:hover {
+  color: #a01830;
+}
+
+/* ====== 提示框 ====== */
+.copyright-page .notice {
+  margin: 24px 0;
+  padding: 16px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.copyright-page .notice-important {
+  background: #fef7f8;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+.copyright-page .notice-info {
+  background: #f0f7ff;
+  border: 1px solid #c3ddf5;
+  color: #2c5282;
+}
+
+/* ====== 定義列表 ====== */
+.copyright-page .rule-list {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+}
+.copyright-page .rule-list li {
+  position: relative;
+  padding: 10px 0 10px 28px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.copyright-page .rule-list li::before {
+  content: '';
+  position: absolute;
+  left: 4px; top: 18px;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #c41e3a;
+}
+
+/* ====== 聯繫卡片 ====== */
+.copyright-page .contact-card {
+  margin: 28px 0;
+  padding: 20px 24px;
+  background: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+}
+.copyright-page .contact-card dt {
+  font-weight: 600;
+  margin-top: 8px;
+  color: #444;
+}
+.copyright-page .contact-card dd {
+  margin: 0 0 4px 12px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* ====== 響應式 ====== */
+@media (max-width: 600px) {
+  .copyright-page {
+    font-size: 14px;
+    padding: 0 12px 32px;
+  }
+  .copyright-page h1 {
+    font-size: 22px;
+  }
+  .copyright-page h2 {
+    font-size: 16px;
+    margin: 28px 0 10px;
+  }
+  .copyright-page .notice {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .copyright-page .contact-card {
+    padding: 14px 16px;
+  }
+}
+</style>
+
+<div class="copyright-page">
+
+<h1>版權聲明</h1>
+<p class="subtitle">最後更新日期：2026 年 6 月</p>
+
+<!-- ====== 第 1 節：內容性質 ====== -->
+<h2>一、本站內容性質</h2>
+
+<p>
+  全球華人新聞網（以下簡稱「本站」）是一個新聞資訊匯集平台。
+  本站刊登的文章多數為編輯團隊對公開新聞報導的摘要整理、
+  翻譯改寫與脈絡補充，並非原文全文轉載。
+</p>
+
+<p>本站內容來源包括但不限於：</p>
+<ul>
+  <li>國際通訊社與主流媒體的公開 RSS 摘要</li>
+  <li>合作媒體授權提供的報導內容</li>
+  <li>本站編輯團隊的原創分析與評論</li>
+  <li>讀者投稿與社群貢獻</li>
+</ul>
+
+<div class="notice notice-important">
+  <strong>重要提示：</strong>本站所有內容均以「資訊摘要」形式呈現，
+  每篇文章末尾均標註原文連結與來源出處。
+  原文完整著作權歸屬原作者或原發布機構所有，
+  本站僅在合理使用（fair use）範圍內進行新聞報導、
+  評論與學術研究性質的引用。
+</div>
+
+<!-- ====== 第 2 節：原文連結標註 ====== -->
+<h2>二、原文連結標註規則</h2>
+
+<p>為確保資訊透明與尊重原始出處，本站遵循以下標註規則：</p>
+
+<ol class="rule-list">
+  <li>
+    <strong>連結位置：</strong>
+    每篇文章末尾固定標註「原文連結」區塊，包含原始報導的完整 URL
+    與來源媒體名稱。
+  </li>
+  <li>
+    <strong>摘要改寫：</strong>
+    本站編輯團隊對原文進行了實質性摘要與改寫，
+    文中觀點與表述不完全等同於原文，讀者可透過原文連結查閱完整報導。
+  </li>
+  <li>
+    <strong>翻譯內容：</strong>
+    若文章為外文報導的翻譯摘要，文章頁面將明確標示「翻譯內容」，
+    並註明原文語言與來源。
+  </li>
+  <li>
+    <strong>署名標註：</strong>
+    若原文有明確作者署名，本站將在來源區塊一併標註原作者姓名。
+  </li>
+</ol>
+
+<!-- ====== 第 3 節：版權歸屬 ====== -->
+<h2>三、版權歸屬說明</h2>
+
+<p>
+  本站所有文章中的原始資訊、圖片、影音內容之著作權，
+  <strong>歸屬於原始權利人</strong>（原作者、原發布媒體或授權方）。
+</p>
+<p>
+  本站編輯團隊對原文進行的摘要、翻譯、分析評論等衍生創作部分，
+  其著作權歸屬於本站或撰稿編輯。
+</p>
+<p>
+  若文章由合作媒體授權提供，則依雙方授權協議之約定處理版權歸屬。
+</p>
+
+<div class="notice notice-info">
+  本站採用「合理使用」原則進行新聞摘要報導。
+  根據《伯恩公約》及多數國家著作權法，
+  為新聞報導目的而引用已公開發表之作品，在指明出處且不損害著作人合法權益的前提下，
+  可構成合理使用。
+</div>
+
+<!-- ====== 第 4 節：刪除請求 ====== -->
+<h2>四、著作權保護與刪除請求</h2>
+
+<p>本站尊重每一位著作權人的合法權利。若您是某篇內容的著作權人，且認為：</p>
+<ul>
+  <li>本站的摘要引用超出了合理使用範圍；或</li>
+  <li>您不希望您的作品被本站收錄與引用；或</li>
+  <li>本站內容存在未經授權的使用行為</li>
+</ul>
+
+<p>
+  請透過本站的<a href="/takedown">侵權刪除通知頁面</a>提交刪除請求。
+  本站承諾在收到完整申請資料後 <strong>48 小時內</strong> 回覆，
+  <strong>72 小時內</strong> 完成內容下架。
+</p>
+
+<!-- ====== 第 5 節：免責條款 ====== -->
+<h2>五、免責條款</h2>
+
+<h3>5.1 資訊準確性</h3>
+<p>
+  本站力求資訊準確，但不對所匯集之新聞摘要的完整性、時效性或正確性作任何明示或默示之保證。
+  讀者如需引用本站資訊，建議查閱原文連結以獲取完整原始報導。
+</p>
+
+<h3>5.2 第三方連結</h3>
+<p>
+  本站文章包含指向第三方網站的外部連結。本站不對第三方網站的內容、
+  隱私政策或營運方式負責。點擊外部連結前，請自行評估風險。
+</p>
+
+<h3>5.3 讀者轉載責任</h3>
+<p>
+  本站不承擔任何讀者或第三方未經原始權利人授權而轉載、散布本站內容所引發的著作權爭議與法律責任。
+  任何第三方若欲轉載本站內容，<strong>須自行取得原始權利人之授權</strong>。
+</p>
+
+<h3>5.4 觀點聲明</h3>
+<p>
+  本站刊登之文章、評論與分析僅代表作者個人觀點，不代表本站立場。
+  本站對讀者基於本站內容所作的任何決定或行動不承擔責任。
+</p>
+
+<h3>5.5 管轄法律</h3>
+<p>
+  本版權聲明之解釋與適用，以及與本站使用有關的爭議，
+  均依中華民國法律處理。因本站使用所生之爭議，
+  以臺灣臺北地方法院為第一審管轄法院。
+</p>
+
+<!-- ====== 第 6 節：聯絡 ====== -->
+<h2>六、聯絡我們</h2>
+
+<dl class="contact-card">
+  <dt>電子郵件</dt>
+  <dd>xxgxxg198733@gmail.con</dd>
+
+  <dt>處理時效</dt>
+  <dd>版權相關郵件將於 48 小時內回覆確認，72 小時內完成處理。</dd>
+
+  <dt>郵件主旨建議</dt>
+  <dd>請使用「版權問題 - [文章網址]」格式，以加速處理流程。</dd>
+</dl>
+
+</div>

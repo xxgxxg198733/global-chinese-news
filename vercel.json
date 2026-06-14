@@ -1,0 +1,122 @@
+{
+  "//": "===== Vercel 專案設定 — 全球華人新聞網 =====",
+
+  "crons": [
+    {
+      "path": "/api/crawler",
+      "schedule": "15 * * * *"
+    }
+  ],
+
+  "functions": {
+    "src/app/api/crawler/route.ts": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "//": "抓取函數：1GB 記憶體 + 60s 上限 (Pro plan)。Hobby 最大值 10s，需改用 GitHub Actions"
+    },
+    "src/app/api/revalidate/route.ts": {
+      "memory": 256,
+      "maxDuration": 10,
+      "//": "ISR 重驗證端點：輕量，256MB 足夠"
+    },
+    "src/app/api/search/route.ts": {
+      "memory": 256,
+      "maxDuration": 10,
+      "//": "搜尋 API：輕量查詢"
+    }
+  },
+
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap"
+    }
+  ],
+
+  "redirects": [
+    {
+      "source": "/home",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/index",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/article/:slug",
+      "destination": "/posts/:slug",
+      "permanent": true
+    }
+  ],
+
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/images/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+
+  "images": {
+    "sizes": [256, 384, 640, 750, 828, 1080, 1200, 1920, 2048],
+    "domains": [],
+    "remotePatterns": [
+      {
+        "protocol": "https",
+        "hostname": "**.wp.com"
+      }
+    ]
+  },
+
+  "github": {
+    "enabled": true,
+    "autoAlias": true,
+    "productionBranch": "main",
+    "silent": false
+  }
+}
