@@ -1,82 +1,133 @@
-# ============================================================
-# GitHub Actions — 定時新聞抓取（Vercel Hobby 替代方案）
-# ============================================================
-# 為什麼需要這個？
-#   Vercel Hobby 的 Cron Jobs 每天只執行一次。
-#   如果你的 RSS 源更新頻繁，一天一次不夠用，
-#   這個 GitHub Actions workflow 可以免費做到每小時一次。
-#
-# 原理：
-#   GitHub Actions 發送 HTTP GET 請求觸發 Vercel 上的 /api/crawler，
-#   攜帶 x-vercel-cron: 1 標頭和 CRON_SECRET 作為 query param，
-#   函數在 Vercel 伺服器端執行（不消耗 Actions 的運算資源）。
-#
-# 設定步驟：
-#   1. GitHub repo → Settings → Secrets and variables → Actions
-#   2. 新增兩個 secrets：
-#      - VERCEL_CRAWLER_URL: https://你的前端域名/api/crawler
-#      - VERCEL_CRON_SECRET: 與 Vercel 中設定的 CRON_SECRET 一致
-#   3. 提交這個檔案後即自動啟用
-# ============================================================
-
-name: 定時新聞抓取
+name: 每小时自动抓取新闻
 
 on:
   schedule:
-    # 每小時的第 15 分鐘（UTC），每天 24 次
-    # GitHub Actions 排程在負載高峰時可能延遲 5–15 分鐘
     - cron: '0 * * * *'
-
-  # 允許手動觸發（Actions 頁面 → Run workflow）
   workflow_dispatch:
-    inputs:
-      force:
-        description: '強制執行（忽略任何限制）'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
 
-# 確保同一時間只有一個 workflow 實例在執行
 concurrency:
   group: crawler-singleton
   cancel-in-progress: false
 
 jobs:
-  trigger-crawler:
-    name: 觸發 Vercel 抓取端點
+  crawler:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      - name: 呼叫 /api/crawler
+      - name: 调用 Vercel 抓取（RSS解析+摘要生成）
+        id: crawl
         run: |
-          RESPONSE=$(curl -s -w '\n%{http_code}' \
-            --max-time 55 \
-            -H 'x-vercel-cron: 1' \
-            "${{ secrets.VERCEL_CRAWLER_URL }}?secret=${{ secrets.VERCEL_CRON_SECRET }}")
+          RESPONSE=$(curl -s --max-time 60 \
+            "https://globalchineaenews.com/api/crawler?secret=${{ secrets.VERCEL_CRON_SECRET }}")
+          echo "$RESPONSE" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          print(f\"RSS解析: {d['itemsFound']}条 | 发布: {d['itemsPublished']} | 失败: {d['itemsFailed']}\")
+          " 2>/dev/null || echo "Crawl failed"
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | head -n -1)
+      - name: 直接抓取并发布（绕过Vercel网络限制）
+        run: |
+          python3 << 'PYEOF'
+          import urllib.request, urllib.parse, json, http.cookiejar, re, os, time, hashlib
 
-          echo "HTTP 狀態碼: $HTTP_CODE"
-          echo "回應內容:"
-          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+          WP = "http://43.172.68.14"
+          USER = "admin"
+          PASS = "X3scdhTmzwls"
+          MAX_ARTICLES = 10
 
-          # 非 2xx 視為失敗，傳送 GitHub Actions 通知
-          if [[ "$HTTP_CODE" -lt 200 || "$HTTP_CODE" -ge 300 ]]; then
-            echo "::error:: 抓取端點返回 HTTP $HTTP_CODE"
-            exit 1
-          fi
+          feeds = [
+              "https://www.france24.com/en/rss",
+              "https://feeds.bbc.co.uk/news/world/rss.xml",
+          ]
 
-          # 解析並輸出統計
-          PUBLISHED=$(echo "$BODY" | jq -r '.itemsPublished // 0')
-          BLOCKED=$(echo "$BODY" | jq -r '.itemsBlocked // 0')
-          DUPLICATE=$(echo "$BODY" | jq -r '.itemsDuplicate // 0')
-          FAILED=$(echo "$BODY" | jq -r '.itemsFailed // 0')
+          # === 1. WP Login ===
+          cj = http.cookiejar.CookieJar()
+          opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+          data = urllib.parse.urlencode({"log":USER,"pwd":PASS,"wp-submit":"登入","testcookie":"1"}).encode()
+          opener.open(urllib.request.Request(f"{WP}/wp-login.php", data=data))
+          nonce = opener.open(urllib.request.Request(f"{WP}/wp-admin/admin-ajax.php?action=rest-nonce")).read().decode().strip()
+          print(f"WP登录成功, nonce: {nonce[:8]}...")
 
-          echo "=============================="
-          echo "發布: $PUBLISHED | 攔截: $BLOCKED | 重複: $DUPLICATE | 失敗: $FAILED"
-          echo "=============================="
+          # === 2. Parse RSS ===
+          def parse_rss(xml):
+              items = []
+              for m in re.finditer(r'<item>(.*?)</item>', xml, re.S):
+                  block = m.group(1)
+                  tag = lambda t: (re.search(f'<{t}[^>]*>(.*?)</{t}>', block, re.S) or [None,None])[1] or ''
+                  title = tag('title').replace('<![CDATA[','').replace(']]>','').strip()
+                  title = re.sub(r'<[^>]*>', '', title).strip()
+                  link = tag('link').strip()
+                  desc = tag('description').replace('<![CDATA[','').replace(']]>','').strip()
+                  desc = re.sub(r'<[^>]*>', ' ', desc).strip()
+                  if title and link:
+                      items.append({'title':title, 'link':link, 'desc':desc})
+              return items
+
+          all_items = []
+          for feed_url in feeds:
+              try:
+                  xml = urllib.request.urlopen(feed_url, timeout=15).read().decode('utf-8', errors='ignore')
+                  items = parse_rss(xml)
+                  all_items.extend(items)
+                  print(f"  RSS: {feed_url.split('/')[2]} → {len(items)}条")
+              except Exception as e:
+                  print(f"  RSS失败: {feed_url.split('/')[2]} — {e}")
+
+          print(f"共 {len(all_items)} 条")
+
+          # === 3. Post to WordPress ===
+          count = 0
+          seen = set()
+          for item in all_items[:MAX_ARTICLES*2]:
+              if count >= MAX_ARTICLES: break
+
+              # Dedup
+              h = hashlib.md5(item['link'].encode()).hexdigest()[:12]
+              if h in seen: continue
+              seen.add(h)
+
+              # Title rewrite
+              prefixes = ['速報','快訊','最新','即時']
+              new_title = f"【{prefixes[hash(item['title'])%4]}】{item['title'][:80]}"
+
+              # Summary from RSS description
+              desc = item['desc'][:300].strip()
+              if len(desc) < 30: continue
+
+              # Category detection
+              txt = new_title + desc
+              cat_id = 2 if any(k in txt for k in ['世界盃','足球','FIFA','World Cup']) else 4
+
+              domain = item['link'].split('/')[2].replace('www.','')
+
+              disclaimer = f'<hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;"><div style="background:#f8f8f8;padding:16px;border-radius:6px;font-size:13px;color:#666;line-height:1.8;"><p style="margin:0 0 8px;font-weight:600;color:#444;">📋 版權與免責聲明</p><p style="margin:0 0 4px;">• 本文為新聞資訊摘要整理，原文來源：<a href="{item["link"]}" target="_blank" rel="noopener noreferrer nofollow" style="color:#c41e3a;">{domain}</a></p><p style="margin:0 0 4px;">• 原文版權歸原作者及原發布機構所有。本網站僅在合理使用範圍內進行新聞摘要報導。</p><p style="margin:0 0 4px;">• 本網站不為使用者轉載、引用本文內容所引發的任何法律爭議承擔責任。</p><p style="margin:0;">• 如著作權人認為本文超出合理使用範圍，請通過<a href="https://globalchineaenews.com/takedown" style="color:#c41e3a;">侵權刪除頁面</a>聯繫我們，將在48小時內處理。</p></div>'
+
+              content = f'<p>{desc}（本文為資訊摘要整理。）</p>{disclaimer}'
+
+              body = json.dumps({
+                  "title": new_title,
+                  "content": content,
+                  "status": "publish",
+                  "categories": [cat_id]
+              }).encode()
+
+              try:
+                  req = urllib.request.Request(
+                      f"{WP}/wp-json/wp/v2/posts",
+                      data=body,
+                      headers={"Content-Type":"application/json","X-WP-Nonce":nonce},
+                      method="POST"
+                  )
+                  resp = opener.open(req)
+                  result = json.loads(resp.read().decode())
+                  pid = result.get("id","?")
+                  print(f"  ✓ #{pid} — {new_title[:50]}")
+                  count += 1
+                  time.sleep(1)
+              except Exception as e:
+                  err = e.read().decode() if hasattr(e,'read') else str(e)
+                  print(f"  ✗ — {str(err)[:80]}")
+
+          print(f"\n发布完成: {count}/{MAX_ARTICLES} 篇")
+          PYEOF
