@@ -59,7 +59,9 @@ export function Header() {
             <Link key={item.href} href={item.href}
               className="px-2.5 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-gray-50 transition-colors">{item.label}</Link>
           ))}
-          <Link href="/reviews" className="px-2.5 py-2 rounded-md text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors">Reviews</Link>
+          <Link href="/tips" className="px-2.5 py-2 rounded-md text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors">Tips</Link>
+          <Link href="/guides" className="px-2.5 py-2 rounded-md text-sm font-medium text-green-600 hover:bg-green-50 transition-colors">Guides</Link>
+          <Link href="/reviews" className="px-2.5 py-2 rounded-md text-sm font-medium text-purple-600 hover:bg-purple-50 transition-colors">Reviews</Link>
         </nav>
 
         <button onClick={() => setOpen(!open)} className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-full">

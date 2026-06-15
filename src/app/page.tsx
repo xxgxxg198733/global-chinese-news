@@ -108,6 +108,32 @@ export default function HomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Tips & Guides quick links */}
+      <div className="grid gap-6 lg:grid-cols-2 mt-12 mb-12">
+        <Link href="/tips" className="group p-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-100 hover:border-amber-300 hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">💡</span>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 group-hover:text-amber-700">Software Tips & Tricks</h2>
+              <p className="text-sm text-gray-500">200 step-by-step software tutorials</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mt-3">Speed up your apps, discover hidden features, fix common problems. Practical guides without the fluff.</p>
+          <span className="inline-block mt-3 text-sm font-medium text-amber-600 group-hover:underline">Browse all tips →</span>
+        </Link>
+        <Link href="/guides" className="group p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-300 hover:shadow-md transition-all">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🎮</span>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 group-hover:text-green-700">Game Guides & Walkthroughs</h2>
+              <p className="text-sm text-gray-500">200 game strategy guides and tips</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mt-3">FPS aim training, RPG builds, strategy game tactics, simulation city layouts. Level up your gameplay.</p>
+          <span className="inline-block mt-3 text-sm font-medium text-green-600 group-hover:underline">Browse all guides →</span>
+        </Link>
+      </div>
     </div>
   );
 }
