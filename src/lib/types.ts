@@ -4,12 +4,12 @@ export interface Software {
   slug: string;
   version: string;
   size: string;
-  platform: ('windows' | 'mac' | 'linux' | 'android' | 'ios')[];
+  platform: string[];
   category: string;
   description: string;
   longDescription: string;
   icon: string;
-  screenshots: string[];
+  screenshots?: string[];
   downloadUrl: string;
   officialSite: string;
   license: string;

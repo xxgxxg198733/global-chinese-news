@@ -19,8 +19,8 @@ export default function HomePage() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       {/* Hero */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-3">安全下载，极速体验</h1>
-        <p className="text-gray-500 text-lg">收录精品软件，拒绝捆绑和广告</p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-3">Safe Downloads, Blazing Fast</h1>
+        <p className="text-gray-500 text-lg">200+ hand-picked apps. No bundles, no ads, just software.</p>
       </div>
 
       {/* Categories */}
