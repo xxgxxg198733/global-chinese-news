@@ -98,6 +98,7 @@ const CONFIG = {
     ? `https://${getEnv('WORDPRESS_HOSTNAME')}`
     : getEnv('NEXT_PUBLIC_WP_URL'),
   WP_USERNAME: getEnv('WP_USERNAME'),
+  WP_PASSWORD: getEnv('WP_PASSWORD'),
   WP_APP_PASSWORD: getEnv('WP_APPLICATION_PASSWORD'),
   DEFAULT_CATEGORY_ID: parseInt(getEnv('DEFAULT_CATEGORY_ID', '1'), 10),
   RSS_FEEDS: getEnvList('CRAWLER_RSS_FEEDS'),
@@ -699,16 +700,76 @@ function generateSummary(text: string, title: string, domain: string): string {
 // WordPress REST API 發布（草稿）
 // ============================================================
 
-async function publishToWordPress(article: CrawlerArticle): Promise<number | null> {
-  if (!CONFIG.WP_URL || !CONFIG.WP_USERNAME || !CONFIG.WP_APP_PASSWORD) {
+/** WordPress 登入狀態快取（避免每次發文都重新登入） */
+let wpCookie: string | null = null;
+let wpNonce: string | null = null;
+let wpCookieExpiry = 0;
+
+async function wpEnsureAuth(): Promise<{ cookie: string; nonce: string } | null> {
+  const now = Date.now();
+  // Cookie 快取 10 分鐘
+  if (wpCookie && wpNonce && now < wpCookieExpiry) {
+    return { cookie: wpCookie, nonce: wpNonce };
+  }
+
+  if (!CONFIG.WP_URL || !CONFIG.WP_USERNAME || !CONFIG.WP_PASSWORD) {
     log('warn', 'WordPress 憑證未配置，跳過發布');
     return null;
   }
 
-  const auth = Buffer.from(`${CONFIG.WP_USERNAME}:${CONFIG.WP_APP_PASSWORD}`).toString('base64');
+  try {
+    // Step 1: 登入取得 cookie
+    const loginResp = await fetch(`${CONFIG.WP_URL}/wp-login.php`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        log: CONFIG.WP_USERNAME,
+        pwd: CONFIG.WP_PASSWORD,
+        'wp-submit': '登入',
+        testcookie: '1',
+      }).toString(),
+      redirect: 'manual',
+    });
+
+    // 直接取 Set-Cookie header 原始值（手動串接多個）
+    const rawSetCookie = loginResp.headers.get('set-cookie') || '';
+    // 多個 Set-Cookie 在 HTTP spec 中是合併成一個字串，用逗號分隔
+    // 但 cookie 值本身可能含逗號……這裡用簡單啟發式：找 wordpress_logged_in_
+    const cookieParts = rawSetCookie.split(/,(?= wordpress_|wordpress_)/);
+    const loggedInPart = cookieParts.find((c: string) => c.includes('wordpress_logged_in_'));
+    if (!loggedInPart) {
+      log('error', `WordPress 登入失敗：cookie 中找不到 wordpress_logged_in_（raw: ${rawSetCookie.slice(0, 100)}）`);
+      return null;
+    }
+    // 只取 key=value（去掉 ; path=/ 等屬性）
+    wpCookie = loggedInPart.split(';')[0].trim();
+
+    // Step 2: 取得 REST nonce
+    const nonceResp = await fetch(`${CONFIG.WP_URL}/wp-admin/admin-ajax.php?action=rest-nonce`, {
+      headers: { Cookie: wpCookie },
+    });
+    wpNonce = (await nonceResp.text()).trim();
+
+    if (!wpNonce || wpNonce.length < 5) {
+      log('error', `WordPress REST nonce 取得失敗：${wpNonce}`);
+      return null;
+    }
+
+    wpCookieExpiry = now + 10 * 60 * 1000; // 10 分鐘
+    return { cookie: wpCookie, nonce: wpNonce };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log('error', `WordPress 認證失敗：${msg}`);
+    return null;
+  }
+}
+
+async function publishToWordPress(article: CrawlerArticle): Promise<number | null> {
+  const auth = await wpEnsureAuth();
+  if (!auth) return null;
+
   const apiUrl = `${CONFIG.WP_URL}/wp-json/wp/v2/posts`;
 
-  // 構建文章內容
   const content = `
 <p>${article.summary}</p>
 <!-- wp:paragraph -->
@@ -734,7 +795,6 @@ async function publishToWordPress(article: CrawlerArticle): Promise<number | nul
       _source_domain: article.sourceDomain,
       _is_automated_fetch: true,
     },
-    // ACF 自定義欄位（需要 ACF to REST API 支援，若無則用 meta fallback）
     acf: {
       original_url: article.originalUrl,
       source_name: article.sourceDomain,
@@ -754,7 +814,8 @@ async function publishToWordPress(article: CrawlerArticle): Promise<number | nul
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Basic ${auth}`,
+        Cookie: auth.cookie,
+        'X-WP-Nonce': auth.nonce,
       },
       body: JSON.stringify(body),
     });

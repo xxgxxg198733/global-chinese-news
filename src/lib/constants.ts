@@ -27,6 +27,7 @@ export const POSTS_PER_PAGE = 20;
 
 export const NAV_ITEMS: NavItem[] = [
   { label: '首頁', href: '/' },
+  { label: '世界盃', href: '/category/world-cup', slug: 'world-cup', highlight: true },
   { label: '即時新聞', href: '/category/breaking-news', slug: 'breaking-news' },
   { label: '國際', href: '/category/world', slug: 'world' },
   { label: '兩岸', href: '/category/cross-strait', slug: 'cross-strait' },

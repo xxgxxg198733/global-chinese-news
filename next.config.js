@@ -1,11 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    // 允許 WordPress 上傳目錄及外部圖片域名
     remotePatterns: [
       {
         protocol: 'https',
         hostname: process.env.WORDPRESS_HOSTNAME || 'cms.mynews.com',
+        port: '',
+        pathname: '/wp-content/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: process.env.WORDPRESS_HOSTNAME || '43.172.68.14',
         port: '',
         pathname: '/wp-content/uploads/**',
       },
@@ -20,7 +25,6 @@ const nextConfig = {
         port: '',
       },
     ],
-    // 使用 @nextwp/core 的圖片優化時需要的格式
     formats: ['image/avif', 'image/webp'],
   },
 

@@ -21,7 +21,6 @@ export default async function HomePage() {
           featuredPosts={featuredPosts}
           latestPosts={latestPosts.nodes}
           popularPosts={popularPosts}
-          totalPosts={latestPosts.pageInfo.total}
           hasMorePosts={latestPosts.pageInfo.hasNextPage}
           endCursor={latestPosts.pageInfo.endCursor}
         />

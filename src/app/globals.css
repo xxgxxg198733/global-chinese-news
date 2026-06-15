@@ -129,7 +129,7 @@
 
   /* 新聞卡片懸停效果 */
   .news-card {
-    @apply group cursor-pointer transition-all duration-300;
+    @apply cursor-pointer transition-all duration-300;
   }
 
   .news-card:hover .news-card-image {

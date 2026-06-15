@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { format, utcToZonedTime } from 'date-fns-tz';
+import { format, toZonedTime } from 'date-fns-tz';
 import { zhTW } from 'date-fns/locale';
 import type { TimezoneMode } from './types';
 
@@ -33,7 +33,7 @@ export function formatDateByTimezone(
 
   if (mode === 'taipei') {
     // 轉換為台北時間
-    const taipeiDate = utcToZonedTime(date, TAIPEI_TIMEZONE);
+    const taipeiDate = toZonedTime(date, TAIPEI_TIMEZONE);
     return format(taipeiDate, formatStr, { locale: zhTW, timeZone: TAIPEI_TIMEZONE });
   }
 

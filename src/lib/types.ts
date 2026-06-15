@@ -123,7 +123,6 @@ export interface PostDetail extends PostSummary {
 export interface PageInfo {
   hasNextPage: boolean;
   endCursor: string;
-  total: number;
 }
 
 /** 文章列表回應 */
@@ -174,4 +173,6 @@ export interface NavItem {
   label: string;
   href: string;
   slug?: string;
+  /** 是否在導航欄中醒目顯示（如世界盃） */
+  highlight?: boolean;
 }

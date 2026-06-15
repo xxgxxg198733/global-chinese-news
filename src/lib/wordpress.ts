@@ -83,27 +83,6 @@ const POST_SUMMARY_FIELDS = `
       slug
     }
   }
-  acfFields {
-    originalUrl
-    sourceName
-    isTranslated
-    originalAuthor
-  }
-  seo {
-    title
-    metaDesc
-    opengraphTitle
-    opengraphDescription
-    opengraphImage {
-      sourceUrl
-    }
-    canonical
-    readingTime
-    breadcrumbs {
-      text
-      url
-    }
-  }
 `;
 
 /** 文章詳情通用欄位（包含完整內容 + 作者 + 標籤） */
@@ -127,30 +106,6 @@ const POST_DETAIL_FIELDS = `
       id
       name
       slug
-    }
-  }
-  seo {
-    title
-    metaDesc
-    metaKeywords
-    canonical
-    opengraphTitle
-    opengraphDescription
-    opengraphImage {
-      sourceUrl
-    }
-    twitterTitle
-    twitterDescription
-    twitterImage {
-      sourceUrl
-    }
-    schema {
-      raw
-    }
-    readingTime
-    breadcrumbs {
-      text
-      url
     }
   }
 `;
@@ -179,7 +134,7 @@ export async function getLatestPosts(
         pageInfo {
           hasNextPage
           endCursor
-          total
+
         }
         nodes {
           ${POST_SUMMARY_FIELDS}
@@ -193,7 +148,8 @@ export async function getLatestPosts(
     return data.posts;
   } catch (error) {
     console.error('獲取文章列表失敗：', error);
-    return { nodes: [], pageInfo: { hasNextPage: false, endCursor: '', total: 0 } };
+    return { nodes: [], pageInfo: { hasNextPage: false, endCursor: ''
+ } };
   }
 }
 
@@ -246,7 +202,7 @@ export async function getPostsByCategory(
   after?: string
 ): Promise<{ nodes: PostSummary[]; pageInfo: PageInfo; category: Category | null }> {
   const query = `
-    query PostsByCategory($categorySlug: [String]!, $first: Int!, $after: String) {
+    query PostsByCategory($categorySlug: String!, $first: Int!, $after: String) {
       posts(
         first: $first
         after: $after
@@ -259,13 +215,13 @@ export async function getPostsByCategory(
         pageInfo {
           hasNextPage
           endCursor
-          total
+
         }
         nodes {
           ${POST_SUMMARY_FIELDS}
         }
       }
-      categories(where: { slug: $categorySlug }) {
+      categories(where: { slug: [$categorySlug] }) {
         nodes {
           id
           databaseId
@@ -280,7 +236,7 @@ export async function getPostsByCategory(
 
   try {
     const data = await getClient().request<PostsResponse & CategoryResponse>(query, {
-      categorySlug: [categorySlug],
+      categorySlug: categorySlug,
       first,
       after,
     });
@@ -294,7 +250,8 @@ export async function getPostsByCategory(
     console.error('獲取分類文章失敗：', error);
     return {
       nodes: [],
-      pageInfo: { hasNextPage: false, endCursor: '', total: 0 },
+      pageInfo: { hasNextPage: false, endCursor: ''
+ },
       category: null,
     };
   }
@@ -322,7 +279,7 @@ export async function searchPosts(
         pageInfo {
           hasNextPage
           endCursor
-          total
+
         }
         nodes {
           ${POST_SUMMARY_FIELDS}
@@ -339,7 +296,8 @@ export async function searchPosts(
     });
     return data.posts;
   } catch {
-    return { nodes: [], pageInfo: { hasNextPage: false, endCursor: '', total: 0 } };
+    return { nodes: [], pageInfo: { hasNextPage: false, endCursor: ''
+ } };
   }
 }
 
@@ -491,7 +449,7 @@ export async function getRelatedPosts(
   if (categorySlugs.length === 0) return [];
 
   const query = `
-    query RelatedPosts($categorySlug: [String]!, $first: Int!, $excludeSlug: [String]!) {
+    query RelatedPosts($categorySlug: String!, $first: Int!, $excludeSlug: [String]!) {
       posts(
         first: $first
         where: {
@@ -512,7 +470,7 @@ export async function getRelatedPosts(
     const data = await getClient().request<{
       posts: { nodes: PostSummary[] };
     }>(query, {
-      categorySlug: categorySlugs,
+      categorySlug: categorySlugs[0] || '',
       first,
       excludeSlug: [currentSlug],
     });

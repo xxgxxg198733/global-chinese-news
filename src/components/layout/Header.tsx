@@ -58,10 +58,19 @@ export function Header() {
                   href={item.href}
                   className={cn(
                     'nav-link rounded-md px-3 py-2',
-                    isActive && 'active'
+                    isActive && 'active',
+                    item.highlight && 'font-bold text-red-600 animate-pulse'
                   )}
                 >
-                  {item.label}
+                  {item.highlight ? (
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-base">⚽</span>
+                      {item.label}
+                      <span className="text-base">🏆</span>
+                    </span>
+                  ) : (
+                    item.label
+                  )}
                 </Link>
               );
             })}
@@ -111,10 +120,20 @@ export function Header() {
                     'block rounded-md px-4 py-3 text-base font-medium transition-colors',
                     isActive
                       ? 'bg-red-50 text-red-600'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-red-600'
+                      : item.highlight
+                        ? 'bg-gradient-to-r from-red-50 to-amber-50 text-red-600 font-bold'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-red-600'
                   )}
                 >
-                  {item.label}
+                  {item.highlight ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span>⚽</span>
+                      {item.label}
+                      <span>🏆</span>
+                    </span>
+                  ) : (
+                    item.label
+                  )}
                 </Link>
               );
             })}

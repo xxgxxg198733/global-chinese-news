@@ -52,7 +52,6 @@ export default async function CategoryPage({
   params: { slug: string };
   searchParams: { page?: string };
 }) {
-  const currentPage = parseInt(searchParams.page || '1', 10);
   const postsPerPage = 20;
 
   const { nodes: posts, pageInfo, category } = await getPostsByCategory(
@@ -64,15 +63,11 @@ export default async function CategoryPage({
     notFound();
   }
 
-  const totalPages = Math.ceil(pageInfo.total / postsPerPage);
-
   return (
     <CategoryPageClient
       category={category}
       posts={posts}
-      currentPage={currentPage}
-      totalPages={totalPages}
-      totalPosts={pageInfo.total}
+      hasNextPage={pageInfo.hasNextPage}
     />
   );
 }
