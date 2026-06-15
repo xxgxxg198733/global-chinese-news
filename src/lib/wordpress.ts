@@ -168,7 +168,8 @@ export async function getPostBySlug(slug: string): Promise<PostDetail | null> {
   try {
     const data = await getClient().request<SinglePostResponse>(query, { slug });
     return data.post;
-  } catch {
+  } catch (err) {
+    console.error('getPostBySlug error:', slug, err instanceof Error ? err.message : String(err));
     return null;
   }
 }
@@ -331,11 +332,12 @@ export async function getAllCategories(): Promise<Category[]> {
 /**
  * 獲取特定 slug 列表的所有文章（用於 sitemap）
  */
-export async function getAllPostSlugs(first: number = 500): Promise<{ slug: string; modified: string }[]> {
+export async function getAllPostSlugs(first: number = 500): Promise<{ databaseId: number; modified: string }[]> {
   const query = `
     query AllPostSlugs($first: Int!) {
       posts(first: $first, where: { status: PUBLISH, orderby: { field: DATE, order: DESC } }) {
         nodes {
+          databaseId
           slug
           modified
         }
@@ -345,7 +347,7 @@ export async function getAllPostSlugs(first: number = 500): Promise<{ slug: stri
 
   try {
     const data = await getClient().request<{
-      posts: { nodes: { slug: string; modified: string }[] };
+      posts: { nodes: { databaseId: number; modified: string }[] };
     }>(query, { first });
     return data.posts.nodes;
   } catch {

@@ -33,7 +33,7 @@ export function PostCard({ post, timezone, variant = 'default', priority = false
 
   return (
     <article className={cn('news-card group', cardStyles[variant])}>
-      <Link href={`/posts/${post.slug}`} className="block overflow-hidden">
+      <Link href={`/posts/${post.databaseId}`} className="block overflow-hidden">
         <div className={cn('relative overflow-hidden', imageStyles[variant])}>
           <Image
             src={imageUrl}
@@ -64,7 +64,7 @@ export function PostCard({ post, timezone, variant = 'default', priority = false
         )}
 
         {/* 標題 */}
-        <Link href={`/posts/${post.slug}`}>
+        <Link href={`/posts/${post.databaseId}`}>
           <h3
             className={cn(
               'font-semibold leading-snug text-gray-900 transition-colors group-hover:text-red-600',

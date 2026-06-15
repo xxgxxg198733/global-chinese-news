@@ -25,7 +25,7 @@ on:
   schedule:
     # 每小時的第 15 分鐘（UTC），每天 24 次
     # GitHub Actions 排程在負載高峰時可能延遲 5–15 分鐘
-    - cron: '15 * * * *'
+    - cron: '0 * * * *'
 
   # 允許手動觸發（Actions 頁面 → Run workflow）
   workflow_dispatch:

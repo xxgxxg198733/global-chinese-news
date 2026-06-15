@@ -161,20 +161,21 @@ export function generateNewsArticleSchema(post: {
 /**
  * 從 Yoast SEO schema 中提取有用資訊
  */
-export function extractSeoMeta(seo: Record<string, unknown> | null | undefined) {
+export function extractSeoMeta(seo: unknown) {
   if (!seo) return null;
+  const s = seo as Record<string, unknown>;
   return {
-    title: (seo.title as string) || '',
-    description: (seo.metaDesc as string) || '',
-    canonical: (seo.canonical as string) || '',
-    ogTitle: (seo.opengraphTitle as string) || '',
-    ogDescription: (seo.opengraphDescription as string) || '',
-    ogImage: (seo.opengraphImage as { sourceUrl: string } | null)?.sourceUrl || null,
-    twitterTitle: (seo.twitterTitle as string) || '',
-    twitterDescription: (seo.twitterDescription as string) || '',
-    twitterImage: (seo.twitterImage as { sourceUrl: string } | null)?.sourceUrl || null,
-    readingTime: (seo.readingTime as number) || 0,
-    schema: (seo.schema as { raw: string } | null)?.raw || null,
-    breadcrumbs: (seo.breadcrumbs as { text: string; url: string }[]) || [],
+    title: (s.title as string) || '',
+    description: (s.metaDesc as string) || '',
+    canonical: (s.canonical as string) || '',
+    ogTitle: (s.opengraphTitle as string) || '',
+    ogDescription: (s.opengraphDescription as string) || '',
+    ogImage: (s.opengraphImage as { sourceUrl: string } | null)?.sourceUrl || null,
+    twitterTitle: (s.twitterTitle as string) || '',
+    twitterDescription: (s.twitterDescription as string) || '',
+    twitterImage: (s.twitterImage as { sourceUrl: string } | null)?.sourceUrl || null,
+    readingTime: (s.readingTime as number) || 0,
+    schema: (s.schema as { raw: string } | null)?.raw || null,
+    breadcrumbs: (s.breadcrumbs as { text: string; url: string }[]) || [],
   };
 }

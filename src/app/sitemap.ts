@@ -48,9 +48,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const postSlugs = await getAllPostSlugs(500);
 
-    for (const { slug, modified } of postSlugs) {
+    for (const { databaseId, modified } of postSlugs) {
       sitemapEntries.push({
-        url: `${SITE_URL}/posts/${slug}`,
+        url: `${SITE_URL}/posts/${databaseId}`,
         lastModified: new Date(modified),
         changeFrequency: 'daily' as const,
         priority: 0.8,

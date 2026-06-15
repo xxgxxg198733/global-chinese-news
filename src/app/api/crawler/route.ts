@@ -40,6 +40,8 @@ interface RSSFeedItem {
   categories?: string[];
   guid?: string;
   isoDate?: string;
+  /** RSS enclosure (image/media) */
+  enclosure?: { url: string; type: string };
 }
 
 interface ParsedFeed {
@@ -48,20 +50,15 @@ interface ParsedFeed {
 }
 
 interface CrawlerArticle {
-  /** 改寫後的標題 */
   rewrittenTitle: string;
-  /** 原創摘要（80–120 字） */
   summary: string;
-  /** 原文 URL */
   originalUrl: string;
-  /** 來源域名 */
   sourceDomain: string;
-  /** 發布日期 */
   publishedDate: string;
-  /** 原文作者（若有） */
   author: string;
-  /** 原始標題 */
   originalTitle: string;
+  /** 從原文提取的圖片 URL */
+  imageUrl: string | null;
 }
 
 interface CrawlerReport {
@@ -324,6 +321,24 @@ function parseRSSItems(xml: string, feedUrl: string): RSSFeedItem[] {
     const guid = getTag('guid');
     const category = getTag('category');
 
+    // 提取 enclosure (圖片/媒體)
+    const encUrlMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*\/?>/i);
+    const encTypeMatch = block.match(/<enclosure[^>]+type=["']([^"']+)["'][^>]*\/?>/i);
+    let enclosure: { url: string; type: string } | undefined;
+    if (encUrlMatch) {
+      enclosure = {
+        url: encUrlMatch[1],
+        type: encTypeMatch ? encTypeMatch[1] : 'image/jpeg',
+      };
+    }
+    // Also check media:content
+    if (!enclosure) {
+      const mediaMatch = block.match(/<media:content[^>]+url=["']([^"']+)["'][^>]*\/?>/i);
+      if (mediaMatch) {
+        enclosure = { url: mediaMatch[1], type: 'image/jpeg' };
+      }
+    }
+
     if (!title || !link) continue;
 
     items.push({
@@ -335,6 +350,7 @@ function parseRSSItems(xml: string, feedUrl: string): RSSFeedItem[] {
       creator,
       categories: category ? [category] : [],
       guid: guid || link,
+      enclosure,
     });
   }
 
@@ -705,6 +721,46 @@ let wpCookie: string | null = null;
 let wpNonce: string | null = null;
 let wpCookieExpiry = 0;
 
+/** 關鍵詞→分類 ID 映射 */
+const CATEGORY_KEYWORDS: [string[], number][] = [
+  [['世界盃', '世界杯', 'world cup', '足球', 'FIFA', '揭幕戰', '小組賽', '淘汰賽', '決賽'], 2],  // 世界盃
+  [['川普', '普丁', '澤倫斯基', '美伊', '和平協議', '外交', '聯合國', '制裁', '軍事', '戰爭', '停火', 'NATO', '歐盟'], 4], // 國際
+  [['中國', '台灣', '兩岸', '北京', '台北', '中共', '蔡英文', '習近平'], 5], // 兩岸
+  [['移民', '留學', '簽證', '護照', '綠卡', 'H1B', '海外工作'], 7], // 移民留學
+  [['華人', '唐人街', '僑胞', '華裔', '亞裔', '社區'], 6], // 華人生活
+];
+
+function detectCategory(text: string): number {
+  const lower = text.toLowerCase();
+  for (const [keywords, catId] of CATEGORY_KEYWORDS) {
+    if (keywords.some((kw) => lower.includes(kw))) {
+      return catId;
+    }
+  }
+  return CONFIG.DEFAULT_CATEGORY_ID; // 默認即時新聞
+}
+
+/** 從 HTML 中提取第一張有意義的圖片 URL */
+function extractImageFromHtml(html: string, baseUrl: string): string | null {
+  // 匹配 <img src="...">
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+  if (imgMatch) {
+    let src = imgMatch[1];
+    // 處理相對路徑
+    if (src.startsWith('/')) {
+      const base = new URL(baseUrl);
+      src = `${base.protocol}//${base.host}${src}`;
+    } else if (!src.startsWith('http')) {
+      src = new URL(src, baseUrl).href;
+    }
+    // 過濾明顯的 icon/logo
+    if (/logo|icon|avatar|pixel|1x1|spacer|tracking|analytics/i.test(src)) return null;
+    if (src.length < 30) return null;
+    return src;
+  }
+  return null;
+}
+
 async function wpEnsureAuth(): Promise<{ cookie: string; nonce: string } | null> {
   const now = Date.now();
   // Cookie 快取 10 分鐘
@@ -770,24 +826,33 @@ async function publishToWordPress(article: CrawlerArticle): Promise<number | nul
 
   const apiUrl = `${CONFIG.WP_URL}/wp-json/wp/v2/posts`;
 
+  // 確定分類
+  const catId = detectCategory(article.rewrittenTitle + ' ' + article.summary);
+
+  const disclaimer = `
+<hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;">
+<div style="background:#f8f8f8;padding:16px;border-radius:6px;font-size:13px;color:#666;line-height:1.8;">
+<p style="margin:0 0 8px;font-weight:600;color:#444;">📋 版權與免責聲明</p>
+<p style="margin:0 0 4px;">• 本文為新聞資訊摘要整理，原文來源：<a href="${article.originalUrl}" target="_blank" rel="noopener noreferrer nofollow" style="color:#c41e3a;">${article.sourceDomain}</a></p>
+<p style="margin:0 0 4px;">• 原文版權歸原作者及原發布機構所有。本網站僅在合理使用範圍內進行新聞摘要報導。</p>
+<p style="margin:0 0 4px;">• 本網站不為使用者轉載、引用本文內容所引發的任何法律爭議承擔責任。</p>
+<p style="margin:0;">• 如著作權人認為本文超出合理使用範圍，請通過<a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://globalchineaenews.com'}/takedown" style="color:#c41e3a;">侵權刪除頁面</a>聯繫我們，將在48小時內處理。</p>
+</div>`.trim();
+
+  const imageHtml = article.imageUrl
+    ? `<figure class="wp-block-image size-large"><img src="${article.imageUrl}" alt="" style="width:100%;border-radius:8px;"/></figure>\n`
+    : '';
+
   const content = `
-<p>${article.summary}</p>
-<!-- wp:paragraph -->
-<p></p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p><em>原文連結：<a href="${article.originalUrl}" target="_blank" rel="noopener noreferrer nofollow">${article.originalUrl}</a></em></p>
-<!-- /wp:paragraph -->
-<!-- wp:paragraph -->
-<p><small>（本文為資訊摘要整理，完整內容請參考原報導。）</small></p>
-<!-- /wp:paragraph -->
+${imageHtml}<p>${article.summary}</p>
+${disclaimer}
 `.trim();
 
   const body = {
     title: article.rewrittenTitle,
     content,
     status: 'draft',
-    categories: [CONFIG.DEFAULT_CATEGORY_ID],
+    categories: [catId],
     meta: {
       _original_url: article.originalUrl,
       _original_title: article.originalTitle,
@@ -890,7 +955,13 @@ async function processItem(item: RSSFeedItem, lastDomain: string): Promise<{ pub
   // 步驟 6：生成摘要
   const summary = generateSummary(extracted.text, item.title, domain);
 
-  // 步驟 7：發布為 WordPress 草稿
+  // 步驟 7：提取圖片
+  const articleImage =
+    (extracted.html ? extractImageFromHtml(extracted.html, item.link) : null)
+    || item.enclosure?.url
+    || null;
+
+  // 步驟 8：發布為 WordPress 草稿
   const article: CrawlerArticle = {
     rewrittenTitle,
     summary,
@@ -899,6 +970,7 @@ async function processItem(item: RSSFeedItem, lastDomain: string): Promise<{ pub
     publishedDate: item.pubDate || item.isoDate || new Date().toISOString(),
     author: item.creator || '',
     originalTitle: item.title,
+    imageUrl: articleImage,
   };
 
   const wpId = await publishToWordPress(article);

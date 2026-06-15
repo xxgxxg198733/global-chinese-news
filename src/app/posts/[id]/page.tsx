@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getPostBySlug, getRelatedPosts, getAllPostSlugs } from '@/lib/wordpress';
+import { getPostById, getRelatedPosts } from '@/lib/wordpress';
 import { POST_REVALIDATE, SITE_URL, SITE_NAME } from '@/lib/constants';
 import { stripHtml, generateNewsArticleSchema, extractSeoMeta } from '@/lib/utils';
 import { PostDetailClient } from './PostDetailClient';
@@ -22,9 +22,9 @@ export const revalidate = POST_REVALIDATE;
 export async function generateMetadata({
   params,
 }: {
-  params: { slug: string };
+  params: { id: string };
 }): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug);
+  const post = await getPostById(parseInt(params.id, 10));
 
   if (!post) {
     return { title: '文章不存在' };
@@ -33,7 +33,7 @@ export async function generateMetadata({
   const seoMeta = extractSeoMeta(post.seo);
   const imageUrl = post.featuredImage?.node?.sourceUrl || `${SITE_URL}/og-image.jpg`;
   const description = seoMeta?.description || stripHtml(post.excerpt).slice(0, 160);
-  const postUrl = `${SITE_URL}/posts/${post.slug}`;
+  const postUrl = `${SITE_URL}/posts/${post.databaseId}`;
 
   return {
     title: seoMeta?.title || stripHtml(post.title),
@@ -78,9 +78,9 @@ export async function generateMetadata({
 export default async function PostPage({
   params,
 }: {
-  params: { slug: string };
+  params: { id: string };
 }) {
-  const post = await getPostBySlug(params.slug);
+  const post = await getPostById(parseInt(params.id, 10));
 
   if (!post) {
     notFound();
@@ -96,7 +96,7 @@ export default async function PostPage({
     excerpt: stripHtml(post.excerpt),
     date: post.date,
     modified: post.modified,
-    url: `${SITE_URL}/posts/${post.slug}`,
+    url: `${SITE_URL}/posts/${post.databaseId}`,
     imageUrl: post.featuredImage?.node?.sourceUrl || null,
     authorName: post.author.node.name,
     siteName: SITE_NAME,

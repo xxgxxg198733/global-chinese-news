@@ -24,7 +24,7 @@ export function PopularRanking({ posts, timezone }: PopularRankingProps) {
         {posts.map((post, index) => (
           <li key={post.id}>
             <Link
-              href={`/posts/${post.slug}`}
+              href={`/posts/${post.databaseId}`}
               className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-red-50/50"
             >
               {/* 排名數字 */}

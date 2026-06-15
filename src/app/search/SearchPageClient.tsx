@@ -79,7 +79,7 @@ export function SearchPageClient() {
               <p className="text-sm text-gray-500">
                 搜尋「<span className="font-medium text-gray-800">{query}</span>」
                 {pageInfo && (
-                  <span> — 共 {pageInfo.total.toLocaleString()} 筆結果</span>
+                  <span> — 搜尋結果</span>
                 )}
               </p>
             )}

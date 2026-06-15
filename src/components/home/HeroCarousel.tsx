@@ -72,7 +72,7 @@ export function HeroCarousel({ posts, timezone }: HeroCarouselProps) {
             </Link>
           )}
 
-          <Link href={`/posts/${post.slug}`}>
+          <Link href={`/posts/${post.databaseId}`}>
             <h2 className="mb-2 text-2xl font-bold leading-tight text-white md:text-3xl lg:text-4xl">
               {stripHtml(post.title)}
             </h2>
