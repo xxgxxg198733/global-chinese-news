@@ -851,7 +851,7 @@ ${disclaimer}
   const body = {
     title: article.rewrittenTitle,
     content,
-    status: 'draft',
+    status: 'publish',
     categories: [catId],
     meta: {
       _original_url: article.originalUrl,
