@@ -17,6 +17,8 @@ interface ArticleData {
   domain: string;
   pubDate: string;
   category: string;
+  /** RSS enclosure 图片 URL */
+  imageUrl: string | null;
 }
 
 const FEEDS = (process.env.CRAWLER_RSS_FEEDS || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -78,6 +80,15 @@ export async function GET(request: NextRequest) {
         const desc = getTag('description');
         const pubDate = getTag('pubDate') || new Date().toISOString();
 
+        // Extract image from enclosure or media:content
+        let imgUrl: string | null = null;
+        const enclosureMatch = block.match(/<enclosure[^>]+url=["']([^"']+)["'][^>]*\/?>/i);
+        if (enclosureMatch) imgUrl = enclosureMatch[1];
+        if (!imgUrl) {
+          const mediaMatch = block.match(/<media:content[^>]+url=["']([^"']+)["'][^>]*\/?>/i);
+          if (mediaMatch) imgUrl = mediaMatch[1];
+        }
+
         if (!title || !link) continue;
         if (desc.length < 40) continue;
 
@@ -108,6 +119,7 @@ export async function GET(request: NextRequest) {
           domain,
           pubDate,
           category: cat,
+          imageUrl: imgUrl,
         });
       }
     } catch {
