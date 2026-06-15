@@ -15,31 +15,28 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: 调用 Vercel 抓取（RSS解析+摘要生成）
+      - name: 步驟1 — 触发 Vercel 解析 RSS（网络好）
         id: crawl
         run: |
+          echo "=== Vercel 解析 RSS ==="
           RESPONSE=$(curl -s --max-time 60 \
             "https://globalchineaenews.com/api/crawler?secret=${{ secrets.VERCEL_CRON_SECRET }}")
-          echo "$RESPONSE" | python3 -c "
+          echo "$RESPONSE" > /tmp/crawl_result.json
+          cat /tmp/crawl_result.json | python3 -c "
           import sys,json
           d=json.load(sys.stdin)
-          print(f\"RSS解析: {d['itemsFound']}条 | 发布: {d['itemsPublished']} | 失败: {d['itemsFailed']}\")
-          " 2>/dev/null || echo "Crawl failed"
+          print(f'RSS源: {d[\"feedsChecked\"]} | 文章: {d[\"itemsFound\"]}条 | 耗时: {d[\"elapsedSeconds\"]}s')
+          "
 
-      - name: 直接抓取并发布（绕过Vercel网络限制）
+      - name: 步驟2 — 直接发布到 WordPress
         run: |
           python3 << 'PYEOF'
-          import urllib.request, urllib.parse, json, http.cookiejar, re, os, time, hashlib
+          import urllib.request, urllib.parse, json, http.cookiejar
 
           WP = "http://43.172.68.14"
           USER = "admin"
           PASS = "X3scdhTmzwls"
           MAX_ARTICLES = 10
-
-          feeds = [
-              "https://www.france24.com/en/rss",
-              "https://feeds.bbc.co.uk/news/world/rss.xml",
-          ]
 
           # === 1. WP Login ===
           cj = http.cookiejar.CookieJar()
@@ -47,87 +44,122 @@ jobs:
           data = urllib.parse.urlencode({"log":USER,"pwd":PASS,"wp-submit":"登入","testcookie":"1"}).encode()
           opener.open(urllib.request.Request(f"{WP}/wp-login.php", data=data))
           nonce = opener.open(urllib.request.Request(f"{WP}/wp-admin/admin-ajax.php?action=rest-nonce")).read().decode().strip()
-          print(f"WP登录成功, nonce: {nonce[:8]}...")
 
-          # === 2. Parse RSS ===
-          def parse_rss(xml):
-              items = []
-              for m in re.finditer(r'<item>(.*?)</item>', xml, re.S):
-                  block = m.group(1)
-                  tag = lambda t: (re.search(f'<{t}[^>]*>(.*?)</{t}>', block, re.S) or [None,None])[1] or ''
-                  title = tag('title').replace('<![CDATA[','').replace(']]>','').strip()
-                  title = re.sub(r'<[^>]*>', '', title).strip()
-                  link = tag('link').strip()
-                  desc = tag('description').replace('<![CDATA[','').replace(']]>','').strip()
-                  desc = re.sub(r'<[^>]*>', ' ', desc).strip()
-                  if title and link:
-                      items.append({'title':title, 'link':link, 'desc':desc})
-              return items
+          # === 2. Get current post count from WP ===
+          resp = opener.open(urllib.request.Request(f"{WP}/wp-json/wp/v2/posts?per_page=1"))
+          total_before = int(resp.headers.get("X-WP-Total", "0"))
+          print(f"WP登录成功，当前文章数: {total_before}")
 
-          all_items = []
-          for feed_url in feeds:
-              try:
-                  xml = urllib.request.urlopen(feed_url, timeout=15).read().decode('utf-8', errors='ignore')
-                  items = parse_rss(xml)
-                  all_items.extend(items)
-                  print(f"  RSS: {feed_url.split('/')[2]} → {len(items)}条")
-              except Exception as e:
-                  print(f"  RSS失败: {feed_url.split('/')[2]} — {e}")
+          # === 3. Generate posts from Vercel crawl result (or create new articles) ===
+          try:
+              with open("/tmp/crawl_result.json") as f:
+                  crawl_data = json.load(f)
+              print(f"Vercel解析了 {crawl_data.get('itemsFound',0)} 条RSS")
+          except:
+              crawl_data = {"itemsFound":0}
 
-          print(f"共 {len(all_items)} 条")
+          # === 4. Post fresh articles ===
+          import time, hashlib, random
 
-          # === 3. Post to WordPress ===
+          # Category keywords mapping
+          def detect_cat(text):
+              t = text.lower()
+              if any(k in t for k in ['世界盃','world cup','足球','fifa','世界杯']): return 2
+              if any(k in t for k in ['trump','putin','zelensky','war','peace','un','nato','military','sanction','diplomat']): return 4
+              if any(k in t for k in ['china','taiwan','beijing','两岸','中国','台湾']): return 5
+              if any(k in t for k in ['immigration','visa','study','移民','留学']): return 7
+              if any(k in t for k in ['community','chinatown','asian','华裔','华人','唐人街']): return 6
+              return 3  # breaking news default
+
           count = 0
-          seen = set()
-          for item in all_items[:MAX_ARTICLES*2]:
-              if count >= MAX_ARTICLES: break
+          # Fetch real headlines from accessible news APIs
+          try:
+              # Try DW RSS
+              import xml.etree.ElementTree as ET
+              for feed_url in [
+                  "https://rss.dw.com/rdf/rss-en-all",
+                  "https://www.aljazeera.com/xml/rss/all.xml",
+              ]:
+                  if count >= MAX_ARTICLES: break
+                  try:
+                      req = urllib.request.Request(feed_url, headers={"User-Agent":"Mozilla/5.0"})
+                      xml_data = urllib.request.urlopen(req, timeout=15).read().decode('utf-8', errors='ignore')
 
-              # Dedup
-              h = hashlib.md5(item['link'].encode()).hexdigest()[:12]
-              if h in seen: continue
-              seen.add(h)
+                      # Parse RSS
+                      items = []
+                      for match in __import__('re').finditer(r'<item>(.*?)</item>', xml_data, __import__('re').S):
+                          block = match.group(1)
+                          def get_tag(tag):
+                              m = __import__('re').search(f'<{tag}[^>]*>(.*?)</{tag}>', block, __import__('re').S)
+                              if m:
+                                  txt = m.group(1)
+                                  txt = __import__('re').sub(r'<[^>]*>', '', txt)
+                                  txt = txt.replace('&lt;','<').replace('&gt;','>').replace('&amp;','&').replace('&quot;','"')
+                                  return txt.strip()
+                              return ''
 
-              # Title rewrite
-              prefixes = ['速報','快訊','最新','即時']
-              new_title = f"【{prefixes[hash(item['title'])%4]}】{item['title'][:80]}"
+                          title = get_tag('title')
+                          link = get_tag('link')
+                          desc = get_tag('description')
+                          if title and link:
+                              items.append({'title':title, 'link':link, 'desc':desc})
 
-              # Summary from RSS description
-              desc = item['desc'][:300].strip()
-              if len(desc) < 30: continue
+                      print(f"  RSS {feed_url.split('/')[2]}: {len(items)}条")
 
-              # Category detection
-              txt = new_title + desc
-              cat_id = 2 if any(k in txt for k in ['世界盃','足球','FIFA','World Cup']) else 4
+                      seen = set()
+                      for item in items[:8]:
+                          if count >= MAX_ARTICLES: break
+                          h = hashlib.md5(item['link'].encode()).hexdigest()[:12]
+                          if h in seen: continue
+                          seen.add(h)
 
-              domain = item['link'].split('/')[2].replace('www.','')
+                          desc_text = item['desc'][:400].strip()
+                          if len(desc_text) < 30: continue
 
-              disclaimer = f'<hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;"><div style="background:#f8f8f8;padding:16px;border-radius:6px;font-size:13px;color:#666;line-height:1.8;"><p style="margin:0 0 8px;font-weight:600;color:#444;">📋 版權與免責聲明</p><p style="margin:0 0 4px;">• 本文為新聞資訊摘要整理，原文來源：<a href="{item["link"]}" target="_blank" rel="noopener noreferrer nofollow" style="color:#c41e3a;">{domain}</a></p><p style="margin:0 0 4px;">• 原文版權歸原作者及原發布機構所有。本網站僅在合理使用範圍內進行新聞摘要報導。</p><p style="margin:0 0 4px;">• 本網站不為使用者轉載、引用本文內容所引發的任何法律爭議承擔責任。</p><p style="margin:0;">• 如著作權人認為本文超出合理使用範圍，請通過<a href="https://globalchineaenews.com/takedown" style="color:#c41e3a;">侵權刪除頁面</a>聯繫我們，將在48小時內處理。</p></div>'
+                          prefixes = ['速報','快訊','最新','即時']
+                          new_title = f"【{prefixes[hash(item['title'])%4]}】{item['title'][:80].strip()}"
 
-              content = f'<p>{desc}（本文為資訊摘要整理。）</p>{disclaimer}'
+                          domain = item['link'].split('/')[2].replace('www.','')
+                          cat_id = detect_cat(new_title + ' ' + desc_text)
 
-              body = json.dumps({
-                  "title": new_title,
-                  "content": content,
-                  "status": "publish",
-                  "categories": [cat_id]
-              }).encode()
+                          src_link = item['link']
+                          disclaimer = f'<hr style="margin:24px 0;border:none;border-top:1px solid #e5e5e5;"><div style="background:#f8f8f8;padding:16px;border-radius:6px;font-size:13px;color:#666;line-height:1.8;"><p style="margin:0 0 8px;font-weight:600;color:#444;">📋 版權與免責聲明</p><p style="margin:0 0 4px;">• 本文為新聞資訊摘要整理，原文來源：<a href="{src_link}" target="_blank" rel="noopener noreferrer nofollow" style="color:#c41e3a;">{domain}</a></p><p style="margin:0 0 4px;">• 原文版權歸原作者及原發布機構所有。本網站僅在合理使用範圍內進行新聞摘要報導。</p><p style="margin:0 0 4px;">• 本網站不為使用者轉載、引用本文內容所引發的任何法律爭議承擔責任。</p><p style="margin:0;">• 如著作權人認為本文超出合理使用範圍，請通過<a href="https://globalchineaenews.com/takedown" style="color:#c41e3a;">侵權刪除頁面</a>聯繫我們，將在48小時內處理。</p></div>'
 
-              try:
-                  req = urllib.request.Request(
-                      f"{WP}/wp-json/wp/v2/posts",
-                      data=body,
-                      headers={"Content-Type":"application/json","X-WP-Nonce":nonce},
-                      method="POST"
-                  )
-                  resp = opener.open(req)
-                  result = json.loads(resp.read().decode())
-                  pid = result.get("id","?")
-                  print(f"  ✓ #{pid} — {new_title[:50]}")
-                  count += 1
-                  time.sleep(1)
-              except Exception as e:
-                  err = e.read().decode() if hasattr(e,'read') else str(e)
-                  print(f"  ✗ — {str(err)[:80]}")
+                          content = f'<p>{desc_text}（本文為資訊摘要整理。）</p>{disclaimer}'
 
-          print(f"\n发布完成: {count}/{MAX_ARTICLES} 篇")
+                          body = json.dumps({
+                              "title": new_title,
+                              "content": content,
+                              "status": "publish",
+                              "categories": [cat_id],
+                              "meta": {"_original_url": src_link, "_is_automated_fetch": True}
+                          }).encode()
+
+                          try:
+                              req = urllib.request.Request(
+                                  f"{WP}/wp-json/wp/v2/posts", data=body,
+                                  headers={"Content-Type":"application/json","X-WP-Nonce":nonce},
+                                  method="POST"
+                              )
+                              resp = opener.open(req)
+                              result = json.loads(resp.read().decode())
+                              pid = result.get("id","?")
+                              print(f"  ✓ #{pid} [{['','世盃','即时','国际','两岸','华人','移民'][cat_id]}] {new_title[:55]}")
+                              count += 1
+                              time.sleep(1.5)
+                          except Exception as e:
+                              err_msg = str(e)[:80]
+                              print(f"  ✗ {err_msg}")
+
+                  except Exception as e:
+                      print(f"  RSS源失败 {feed_url}: {str(e)[:80]}")
+
+          except Exception as e:
+              print(f"抓取异常: {e}")
+
+          # Final count
+          resp = opener.open(urllib.request.Request(f"{WP}/wp-json/wp/v2/posts?per_page=1"))
+          total_after = int(resp.headers.get("X-WP-Total", "0"))
+          print(f"\n{'='*40}")
+          print(f"本次发布: {count}篇 | 网站总文章: {total_before}→{total_after}")
           PYEOF
