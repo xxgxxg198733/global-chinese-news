@@ -39,29 +39,30 @@ jobs:
                   return text
 
           def get_image(title_en, title_zh):
-              """从英文标题提取关键词，到 Unsplash 搜索匹配图片"""
-              # 提取关键英文单词（过滤常见停用词）
+              """从标题提取关键词搜索免费图片 - 多重来源"""
+              # 提取关键词
               stopwords = {'the','a','an','is','are','was','were','in','on','at','to','for','of','with',
                           'and','or','but','not','this','that','it','its','from','by','as','be','has','have','had'}
               words = [w.lower() for w in re.findall(r'[a-zA-Z]{3,}', title_en) if w.lower() not in stopwords]
-              # 取前 3-4 个关键词
               keywords = words[:4] if len(words) >= 3 else words + ['news']
               query = ','.join(keywords)
-              url = f"https://source.unsplash.com/1200x630/?{query}"
-              try:
-                  r = requests.get(url, timeout=10, allow_redirects=True)
-                  if r.status_code == 200 and len(r.content) > 5000:
-                      print(f"    配图关键词: {query}")
-                      return r.content
-              except:
-                  pass
-              # Fallback: broader search
-              try:
-                  broad = keywords[:2] if len(keywords) >= 2 else keywords
-                  r = requests.get(f"https://source.unsplash.com/1200x630/?{','.join(broad)}", timeout=10)
-                  if r.status_code == 200: return r.content
-              except:
-                  pass
+
+              # 多个免费图源轮流尝试
+              sources = [
+                  f"https://source.unsplash.com/1200x630/?{query}",
+                  f"https://picsum.photos/seed/{hash(title_en)%9999}/1200/630",
+                  f"https://source.unsplash.com/1200x630/?{keywords[0] if keywords else 'news'}",
+              ]
+              for url in sources:
+                  try:
+                      req = urllib.request.Request(url, headers={'User-Agent':'Mozilla/5.0'})
+                      r = urllib.request.urlopen(req, timeout=10)
+                      data = r.read()
+                      if len(data) > 3000:
+                          print(f"    配图: {url.split('/')[2]} ({len(data)//1024}KB)")
+                          return data
+                  except:
+                      continue
               return None
 
           # === 1. Get articles from Vercel ===
