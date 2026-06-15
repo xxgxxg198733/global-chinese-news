@@ -931,11 +931,19 @@ async function processItem(item: RSSFeedItem, lastDomain: string): Promise<{ pub
     return { published: false, title: item.title, domain, error: '重複' };
   }
 
-  // 步驟 3：提取原文內容
-  const extracted = await extractContent(item.link);
+  // 步驟 3：提取原文內容（優先抓網頁，失敗則用 RSS 摘要）
+  let extracted = await extractContent(item.link);
+  let usedFallback = false;
   if (!extracted || extracted.text.length < 50) {
-    log('warn', `內容提取不足，跳過：${item.title}`);
-    return { published: false, title: item.title, domain, error: '內容提取不足' };
+    const rssText = (item.contentSnippet || item.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (rssText.length >= 50) {
+      extracted = { text: rssText.slice(0, CONFIG.CONTENT_EXTRACT_LIMIT), html: '' };
+      usedFallback = true;
+      log('info', `使用 RSS 摘要作為備用：${item.title}（${rssText.length} 字元）`);
+    } else {
+      log('warn', `內容提取不足，跳過：${item.title}`);
+      return { published: false, title: item.title, domain, error: '內容提取不足' };
+    }
   }
 
   // 步驟 4：提取過程中再次做關鍵詞黑名單檢查（針對正文）
